@@ -1,0 +1,220 @@
+<!-- http://www.catastro.meh.es/servicios/wms/wms.htm -->
+
+<!DOCTYPE html>
+<html>
+
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+<link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css"
+  integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
+<link rel="stylesheet"
+  href="https://cdnjs.cloudflare.com/ajax/libs/MaterialDesign-Webfont/5.9.55/css/materialdesignicons.min.css"
+  integrity="sha512-vIgFb4o1CL8iMGoIF7cYiEVFrel13k/BkTGvs0hGfVnlbV6XjAA0M0oEHdWqGdAVRTDID3vIZPOHmKdrMAUChA=="
+  crossorigin="anonymous" />
+<script src="https://stackpath.bootstrapcdn.com/bootstrap/4.2.1/js/bootstrap.min.js"
+  integrity="sha384-B0UglyR+jN6CkvvICOB2joaf5I4l3gm9GU6Hc1og6Ls7i6U/mkkaduKaBhlAXv9k" crossorigin="anonymous">
+  </script>
+
+<head>
+  <title>Google-Cadastre</title>
+  <meta name="viewport" content="initial-scale=1.0, user-scalable=no">
+  <meta charset="utf-8">
+  <style>
+    /* Always set the map height explicitly to define the size of the div
+       * element that contains the map. */
+
+    #map {
+      height: 100%;
+      width: 80%;
+    }
+
+    /* Optional: Makes the sample page fill the window. */
+
+    html,
+    body {
+      height: 100%;
+      margin: 0;
+      padding: 0;
+    }
+  </style>
+</head>
+
+<body>
+  <div>
+    <h4 class="bg-dark text-white text-center pt-2 pb-1">
+      <span class="mdi mdi-google-maps"></span> Google Maps Cadastre layer example
+    </h4>
+  </div>
+  <section class="mx-auto w-75 card py-2 my-2">
+    <div class="row w-75 mx-auto pb-2">
+      <label for="layers">Choose a layer</label>
+      <select class="form-control" id="layers" onchange="change()">
+        <span class="mdi mdi-layers-minus"></span>
+      </select>
+    </div>
+    <div class="row mx-auto">
+      <button class="btn btn-primary mr-2" onclick="show()">
+        <span class="mdi mdi-layers-plus"></span>
+        Show layer
+      </button>
+      <button class="btn btn-secondary" onclick="hide()">
+        <span class="mdi mdi-layers-minus"></span>
+        Hide layer
+      </button>
+    </div>
+    <div class="row w-75 mx-auto">
+      <label for="customRange1">Opacity</label>
+      <input type="range" min="0" max="100" class="custom-range" id="opacity" onchange="show($(this).val()/100)">
+    </div>
+    <div class="w-75 mx-auto">
+      <h5 class="text-center" id="opacity_val"></h5>
+    </div>
+  </section>
+  <div>
+    <div class="input-group w-75 mx-auto pt-1 pb-1">
+      <input id="autocomplete" type="search" class="form-control" placeholder='Write the address to search...'>
+      <input id="refCad" type="search" class="form-control" minlength="14" maxlength="20"
+        placeholder='{% trans "clica el botó esquerre per tornar a la cerca per adreça" %}...' style="display:none;">
+    </div>
+    <div class="mx-auto w-75" style="height: 500px;" id="map"></div>
+  </div>
+  <script>
+
+    layers = [
+      "Catastro",
+      "CONSTRU",
+      "TXTCONSTRU",
+      "SUBPARCE",
+      "TXTSUBPARCE",
+      "PARCELA",
+      "TXTPARCELA",
+      "MASA",
+      "TXTMASA",
+      "EJES",
+      "LIMITES",
+      "TEXTOS",
+      "ELEMLIN"
+    ]
+
+    var EXTENT = [-Math.PI * 6378137, Math.PI * 6378137];
+    function xyzToBounds(x, y, z) {
+      var tileSize = (EXTENT[1] * 2) / Math.pow(2, z);
+      var minx = EXTENT[0] + x * tileSize;
+      var maxx = EXTENT[0] + (x + 1) * tileSize;
+      // remember y origin starts at top
+      var miny = EXTENT[1] - (y + 1) * tileSize;
+      var maxy = EXTENT[1] - y * tileSize;
+      return [minx, miny, maxx, maxy];
+    }
+
+    var getTileUrl = function (coordinates, zoom) {
+      // console.log(coordinates.x, coordinates.y, zoom)
+      return (
+        "https://ovc.catastro.meh.es/Cartografia/WMS/ServidorWMS.aspx?" +
+        "&REQUEST=GetMap&" +
+        // "&REQUEST=GETFEATUREINFO&"+
+        "SERVICE=WMS&VERSION=1.1.1" +
+        "&LAYERS=" + $("#layers").val() +
+        "&FORMAT=image%2Fpng" +
+        "&SRS=EPSG:3857&" +
+        // "TIME=2017-10-23&"+
+        "WIDTH=256&HEIGHT=256" +
+        "&BBOX=" +
+        xyzToBounds(coordinates.x, coordinates.y, zoom).join(",")
+      );
+    };
+
+    var map
+    var landcover
+
+    function change() {
+      hide()
+      show()
+    }
+
+    var getgetfeatureinfourl = function (coordinates, zoom) {
+      console.log(coordinates, zoom)
+      return (
+        "https://ovc.catastro.meh.es/Cartografia/WMS/ServidorWMS.aspx?" +
+        // "&REQUEST=GETFEATUREINFO&"+
+        "SERVICE=WMS&VERSION=1.1.1" +
+        "&SRS=EPSG:3857&" +
+        // "TIME=2017-10-23&"+
+        "&BBOX=" +
+        xyzToBounds(coordinates.x, coordinates.y, zoom).join(",")
+      );
+    };
+
+    function show() {
+      $('#opacity_val').html($('#opacity').val() + "%")
+      if (map.overlayMapTypes.length == 0)
+        map.overlayMapTypes.push(landcover)
+      landcover.setOptions({
+        opacity: $('#opacity').val() / 100,
+        getTileUrl: getTileUrl,
+      })
+    }
+
+    function hide() {
+      if (map.overlayMapTypes.length > 0)
+        map.overlayMapTypes.clear()
+      else
+        console.warn("No overlay!")
+    }
+
+    function googleMapsCustomError() {
+      alert('Google Maps custom error triggered')
+    }
+
+
+    function initMap() {
+      map = new google.maps.Map(document.getElementById("map"), {
+        zoom: 18,
+        center: {
+          // lat: 42.034232,
+          // lng: 2.804443 
+          lat: 41.983280,
+          lng: 2.814689
+        }
+      });
+
+      landcover = new google.maps.ImageMapType({
+        getTileUrl: getTileUrl,
+        name: "CATASTRO",
+        alt: "DIRECCION GENERAL DEL CATASTRO",
+        minZoom: 0,
+        maxZoom: 19,
+        opacity: 0.6,
+      });
+
+      autocomplete = new google.maps.places.Autocomplete(
+        /** @type {!HTMLInputElement} */
+        (
+          document.getElementById('autocomplete')), {
+        componentRestrictions: {
+          country: 'es'
+        }
+      })
+
+      places = new google.maps.places.PlacesService(map)
+      autocomplete.addListener('place_changed', place_changed)
+      function place_changed() {
+        var place = autocomplete.getPlace()
+        map.panTo(place.geometry.location)
+        map.setZoom(20)
+      }
+    }
+
+    layers.forEach(e => {
+      $("#layers").append('<option value="' + e + '">' + e + '</option>')
+    })
+
+  </script>
+
+  <script async defer
+    src="https://maps.googleapis.com/maps/api/js?callback=initMap&libraries=places&key=AIzaSyDixnAHIZiOX6-XmTkA_7DGAIC2Rn43URo">
+    </script>
+  <script>
+  </script>
+</body>
+
+</html>
