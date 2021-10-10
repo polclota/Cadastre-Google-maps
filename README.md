@@ -1,7 +1,16 @@
+# Cadastre-Google-maps
+
 # HTML file including JS code
+Main file: google_cadaster.html
 Using Google maps as base map and displaying a WMS layer from cadastre
 
-# Python code
-Displaying WMS cadaster properties
-Saving a tile and gettong tile's feature info
-# Cadastre-Google-maps
+# Python3 code
+Displays WMS cadaster properties
+Saves a tile to a PNG file and gets a tile features info
+
+Main file: cadaster.py
+Before running: pip install -r requirements.txt
+
+# Other helpful files
+leaflet.html: Displays a WMS cadastre layer over a leaflet map
+
